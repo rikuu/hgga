@@ -11,17 +11,17 @@ MINIASM = SCRIPT_LOCATION + '/miniasm/miniasm'
 RACON = SCRIPT_LOCATION  + '/racon/build/bin/racon'
 
 if len(sys.argv) != 4 and len(sys.argv) != 5:
-    print("Usage: %s <reads> <alignments> <min leaf size> [alignment bin size]" % sys.argv[0], file=sys.stderr)
+    print("Usage: %s <reads> <alignments> <min leaf size> [number of threads]" % sys.argv[0], file=sys.stderr)
     sys.exit(1)
 
 READS = sys.argv[1]
 ALIGNMENTS = sys.argv[2]
 MIN_LEAF_SIZE = int(sys.argv[3])
 BIN_SIZE = 10000
-THREADS = 4
+THREADS = 1
 
 if len(sys.argv) == 5:
-    BIN_SIZE = int(sys.argv[4])
+    THREADS = int(sys.argv[4])
 
 topology = leafify.leafify(READS, ALIGNMENTS, MIN_LEAF_SIZE, BIN_SIZE)
 
