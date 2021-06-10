@@ -1,6 +1,5 @@
 import sys, os
 from math import log
-from collections import defaultdict
 
 import leafify, asm_node
 
@@ -31,6 +30,7 @@ for r, nleaves in enumerate(topology):
         prefix = 'tmp.%d.%d.%d' % (r, i, 0)
 
         # TODO: check for errors
+        # TODO: support predefines for ont and hifi
         os.system(MINIMAP + ' -t %d -x ava-pb %s %s > %s' % (THREADS, prefix + '.fa', prefix + '.fa', prefix + '.paf'))
 
         os.system(MINIASM + ' -f %s %s > %s' % (prefix + '.fa', prefix + '.paf', prefix + '.gfa'))
@@ -46,12 +46,19 @@ for r, nleaves in enumerate(topology):
         for i in range(0, j, 2):
             prefix = 'tmp.%d.%d.%d' % (r, k, l)
 
+            # TODO: take partial all-vs-all mappings from leaves
             os.system('cat %s %s > %s' % ('tmp.%d.%d.%d.asm.fa' % (r, i, l-1), 'tmp.%d.%d.%d.asm.fa' % (r, i+1, l-1), prefix + '.fa'))
             os.system(MINIMAP + ' -t %d -x ava-pb %s %s > %s' % (THREADS, prefix + '.fa', prefix + '.fa', prefix + '.paf'))
+
+            # TODO: support gfa input/output
             asm_node.assemble(prefix + '.paf', prefix + '.fa', prefix + '.asm.fa')
             
             k += 1
         j = k
 
 assemblies = ['tmp.%d.0.%d.asm.fa' % (r, int(log(nleaves, 2))+1) for r, nleaves in enumerate(topology)]
-os.system('cat' + ' '.join(assemblies) + ' > final.asm.fa')
+os.system('cat' + ' '.join(assemblies) + ' > final.fa')
+
+# Handle mis-separated trees by one final self-assembly
+os.system(MINIMAP + ' -t %d -x ava-pb %s %s > %s' % (THREADS, 'final.fa', 'final.fa', 'final.paf'))
+asm_node.assemble('final.paf', 'final.fa', 'final.asm.fa', min_overlap=1000, max_overhang=100, min_length=5000)
