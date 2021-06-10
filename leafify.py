@@ -1,6 +1,5 @@
 import sys, pysam
 from collections import defaultdict
-from math import floor
 from itertools import zip_longest
 
 def grouper(iterable, n, fillvalue=None):
@@ -27,7 +26,6 @@ def parse_colors(filename):
                 continue
 
             sb, eb = s & 0xFFFF, e & 0xFFFF
-
             st, et = s >> 16, e >> 16
             # assert st == et
 
@@ -39,9 +37,8 @@ def parse_colors(filename):
 
 def construct_hierarchies(alignments, min_leaf_size):
     # topology[i] is the number of leaves in tree i
-    # This seems intentionally confusing.
     trees, topology = [], []
-    for ref, reads in alignments.items():
+    for reads in alignments.values():
         sorting = sorted(reads, key = lambda x: x[0])
 
         tree = []
@@ -99,21 +96,29 @@ def write_leaves(trees, topology, reads_file):
         for handle in files.values():
             handle.close()
 
-def leafify(reads_file, guide_file, min_leaf_size, bin_size=10000):
+def leafify(reads_file, guide_file, min_leaf_size=None, bin_size=10000):
     guide = None
     if guide_file[-4:] == '.sam':
-        # Using sam alignments as guide
+        # Using SAM alignments as guide
         print('SAM leafify, ' + guide_file, file=sys.stderr)
         guide = parse_alignments(guide_file, bin_size)
     else:
         # Using kermit colors as guide
         print('Kermit leafify, ' + guide_file, file=sys.stderr)
         guide = parse_colors(guide_file)
+    
+    # Default minimum leaf size is 2% of reads
+    if min_leaf_size == None:
+        num_of_reads = sum([len(reads) for reads in guide.values()])
+        min_leaf_size = int(0.2 * num_of_reads)
 
     # NOTE: We use half size leaves to get double the leaves for overlapping
     # We should see an average leaf size of min_leaf_size after overlapping
     trees, topology = construct_hierarchies(guide, min_leaf_size // 2)
 
+    # Force leaves to overlap by adding left and right halves of leaves
+    # to left and right neighbor
+    # NOTE: This assumes leaves to be linear, i.e. left and right have meaning
     new_topology = [0 for i in range(len(trees))]
     overlapping = [[] for i in range(len(trees))]
     for t, tree in enumerate(trees):
@@ -146,7 +151,6 @@ def leafify(reads_file, guide_file, min_leaf_size, bin_size=10000):
         new_topology[t] = c + 1
 
     write_leaves(overlapping, new_topology, reads_file)
-
     return new_topology
 
 if __name__ == "__main__":
