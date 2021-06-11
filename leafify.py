@@ -110,7 +110,7 @@ def leafify(reads_file, guide_file, min_leaf_size=None, bin_size=10000):
     # Default minimum leaf size is 2% of reads
     if min_leaf_size == None:
         num_of_reads = sum([len(reads) for reads in guide.values()])
-        min_leaf_size = int(0.2 * num_of_reads)
+        min_leaf_size = int(0.02 * num_of_reads)
 
     # NOTE: We use half size leaves to get double the leaves for overlapping
     # We should see an average leaf size of min_leaf_size after overlapping
