@@ -33,7 +33,7 @@ if len(sys.argv) == 4:
     THREADS = int(sys.argv[3])
 
 if len(sys.argv) == 5:
-    MIN_LEAF_SIZE = int(sys.argv[4])
+    MIN_LEAF_SIZE = float(sys.argv[4])
 
 topology = leafify.leafify(READS, ALIGNMENTS, MIN_LEAF_SIZE, BIN_SIZE)
 

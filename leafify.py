@@ -21,21 +21,28 @@ def parse_colors(filename):
     with open(filename, 'r') as f:
         for line in f:
             data = line.strip().split()
-            s, e = int(data[1]), int(data[2])
+            read, start, end = data[0], int(data[1]), int(data[2])
 
-            if s == 0 or e == 0:
+            # Color 0 denotes uncolored read
+            if start == 0 or end == 0:
                 continue
 
-            sb, eb = s & 0xFFFF, e & 0xFFFF
-            st, et = s >> 16, e >> 16
+            # low bits is bin, high bits is contig
+            sb, eb = start & 0xFFFF, end & 0xFFFF
+            st, et = start >> 16, end >> 16
+
             # assert st == et
 
-            # TODO: Using middle bin might be too unstable
-            mid = s + ((eb - sb) // 2)
-            colors[st].append((mid, data[0]))
+            # when st != et, coloring is chimeric in contig space
+            # this is fine in most cases, however arithmetic on the coloring is sus
+            # this could be handled better than throwing away high bits of the color
+
+            mid = start + ((eb - sb) // 2)
+            colors[st].append((mid, read))
 
     return colors
 
+# Returns a list of trees and a count of leaves in each tree
 def construct_hierarchies(alignments, min_leaf_size):
     # topology[i] is the number of leaves in tree i
     trees, topology = [], []
@@ -64,22 +71,17 @@ def construct_hierarchies(alignments, min_leaf_size):
 
     return trees, topology
 
+# Writes each leaf into a file
 def write_leaves(trees, topology, reads_file):
     for i, tree in enumerate(trees):
         reads = defaultdict(list)
         for n, c in tree:
             reads[n].append(c)
 
-        n_reads = defaultdict(int)
-        n_found_reads = defaultdict(int)
-        for n, cs in reads.items():
-            for c in cs:
-                n_reads[c] += 1
-
         files = { j: open('tmp.'+str(i)+'.'+str(j)+'.0.fa', 'w') for j in range(topology[i]) }
 
         # NOTE: fastq -> fasta
-        # TODO: support better input
+        # TODO: support more input and output formats
         with open(reads_file) as f:
             for lines in grouper(f, 4, ''):
                 name = lines[0][1:-1].split(' ')[0]
@@ -87,8 +89,6 @@ def write_leaves(trees, topology, reads_file):
                     read = '>' + lines[0][1:] + lines[1]
                     for c in reads[name]:
                         files[c].write(read)
-
-                        n_found_reads[c] += 1
 
         for handle in files.values():
             handle.close()
@@ -156,6 +156,6 @@ if __name__ == "__main__":
 
     reads_file = sys.argv[1]
     guide_file = sys.argv[2]
-    min_leaf_size = int(sys.argv[3])
+    min_leaf_size = float(sys.argv[3])
     
     leafify(reads_file, guide_file, min_leaf_size, 10000)
