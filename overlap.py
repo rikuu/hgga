@@ -1,3 +1,4 @@
+from math import inf
 import sys
 
 # Start/end of a read
@@ -32,10 +33,10 @@ class OverlapGraph:
 
                 # If u is shorter than v and both overhangs in u are short,
                 # then u is a contained in v and vice versa
-                if (ul < vl and us < max_overhang and ul-ue < max_overhang):
+                if ul < vl and us < max_overhang and ul-ue < max_overhang:
                     if not u in contained:
                         contained.append(u)
-                elif (vl <= ul and vs < max_overhang and vl-ve < max_overhang):
+                elif vl <= ul and vs < max_overhang and vl-ve < max_overhang:
                     if not v in contained:
                         contained.append(v)
 
@@ -150,8 +151,15 @@ class OverlapGraph:
         
         paths, visited = [], []
         while len(visited) < len(self.edges.keys()):
-            # TODO: clean this
-            start = min([(len(v), k) for k, v in self.edges.items() if not k in visited], key=lambda x: x[0])[1]
+            # Find node with least incoming edges
+            start, min_edges = None, inf
+            for node, edges in self.edges.items():
+                if node in visited:
+                    continue
+
+                if len(edges) < min_edges:
+                    start = node
+                    min_edges = len(edges)
 
             path, visited = self.max_path(start, visited)
             paths.append(path)
