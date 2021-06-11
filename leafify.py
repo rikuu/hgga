@@ -1,6 +1,7 @@
 import sys, pysam
 from collections import defaultdict
 from itertools import zip_longest
+from math import ceil
 
 def grouper(iterable, n, fillvalue=None):
     args = [iter(iterable)] * n
@@ -75,9 +76,6 @@ def write_leaves(trees, topology, reads_file):
             for c in cs:
                 n_reads[c] += 1
 
-        print(topology[i])
-        print(n_reads.items())
-
         files = { j: open('tmp.'+str(i)+'.'+str(j)+'.0.fa', 'w') for j in range(topology[i]) }
 
         # NOTE: fastq -> fasta
@@ -91,12 +89,11 @@ def write_leaves(trees, topology, reads_file):
                         files[c].write(read)
 
                         n_found_reads[c] += 1
-        print(n_found_reads.items(), '\n')
 
         for handle in files.values():
             handle.close()
 
-def leafify(reads_file, guide_file, min_leaf_size=None, bin_size=10000):
+def leafify(reads_file, guide_file, leaf_fraction, bin_size):
     guide = None
     if guide_file[-4:] == '.sam':
         # Using SAM alignments as guide
@@ -107,10 +104,9 @@ def leafify(reads_file, guide_file, min_leaf_size=None, bin_size=10000):
         print('Kermit leafify, ' + guide_file, file=sys.stderr)
         guide = parse_colors(guide_file)
     
-    # Default minimum leaf size is 2% of reads
-    if min_leaf_size == None:
-        num_of_reads = sum([len(reads) for reads in guide.values()])
-        min_leaf_size = int(0.02 * num_of_reads)
+    # Compute minimum leaf size
+    num_of_reads = sum([len(reads) for reads in guide.values()])
+    min_leaf_size = ceil(leaf_fraction * num_of_reads)
 
     # NOTE: We use half size leaves to get double the leaves for overlapping
     # We should see an average leaf size of min_leaf_size after overlapping
@@ -155,11 +151,11 @@ def leafify(reads_file, guide_file, min_leaf_size=None, bin_size=10000):
 
 if __name__ == "__main__":
     if len(sys.argv) != 4:
-        print("Usage: %s <reads> <alignments> <depth>" % sys.argv[0], file=sys.stderr)
+        print("Usage: %s <reads> <alignments> <min leaf size>" % sys.argv[0], file=sys.stderr)
         sys.exit(1)
 
     reads_file = sys.argv[1]
     guide_file = sys.argv[2]
-    max_depth = int(sys.argv[3])
+    min_leaf_size = int(sys.argv[3])
     
-    leafify(reads_file, guide_file, max_depth)
+    leafify(reads_file, guide_file, min_leaf_size, 10000)

@@ -2,10 +2,6 @@ import sys
 
 from overlap import OverlapGraph
 
-MIN_OVERLAP = 10000
-MAX_OVERHANG = 1000
-MIN_LENGTH = 1000
-
 REV = { 'A': 'T',  'T': 'A', 'G': 'C', 'C': 'G' }
 reverse_complement = lambda s: ''.join(REV[c] for c in reversed(s.upper()))
 
@@ -46,8 +42,8 @@ def construct_sequence(path, graph, reads):
 
     return seq, contained, name
 
-def assemble(mappings, reads_file, out_file, min_overlap=MIN_OVERLAP, max_overhang=MAX_OVERHANG, min_length=MIN_LENGTH):
-    graph, assembled = OverlapGraph.parse_paf(mappings, min_overlap=min_overlap, max_overhang=max_overhang)
+def assemble(mappings, reads_file, out_file, min_overlap, max_overhang, min_length):
+    graph, assembled = OverlapGraph.parse_paf(mappings, min_overlap, max_overhang)
     paths = graph.max_paths()
 
     reads = parse_reads(reads_file)
@@ -77,17 +73,16 @@ if __name__ == "__main__":
     mappings = sys.argv[1]
     reads = sys.argv[2]
 
-    min_overlap = MIN_OVERLAP
+    min_overlap = 10000
     if len(sys.argv) >= 4:
         min_overlap = int(sys.argv[3])
 
-    max_overhang = MAX_OVERHANG
+    max_overhang = 1000
     if len(sys.argv) >= 5:
         max_overhang = int(sys.argv[4])
 
-    min_length = MIN_LENGTH
+    min_length = 1000
     if len(sys.argv) == 6:
         min_length = int(sys.argv[5])
     
-    assemble(mappings, reads, reads + '.asm.fa',
-        min_overlap=min_overlap, max_overhang=max_overhang, min_length=min_length)
+    assemble(mappings, reads, reads + '.asm.fa', min_overlap, max_overhang, min_length)

@@ -1,11 +1,7 @@
 import sys
 
-MAX_OVERHANG = 0
-MIN_OVERLAP = 0
-
-# Start of a read
+# Start/end of a read
 node_in = lambda n: n+'-'
-# End of a read
 node_out = lambda n: n+'+'
 
 class OverlapGraph:
@@ -18,7 +14,7 @@ class OverlapGraph:
     # - PAF file
     # - minimum overlap length to consider
     # - maximum overhang to ignore in an end which overlaps with the other read
-    def parse_paf(filename, min_overlap = MIN_OVERLAP, max_overhang = MAX_OVERHANG):
+    def parse_paf(filename, min_overlap, max_overhang):
         graph = OverlapGraph()
         contained = []
 
@@ -34,19 +30,16 @@ class OverlapGraph:
                 if u == v or max(ue-us, ve-vs) < min_overlap:
                     continue
 
-                # If u is shorter than v and both overhangs in u are short, then u is a contained in v
+                # If u is shorter than v and both overhangs in u are short,
+                # then u is a contained in v and vice versa
                 if (ul < vl and us < max_overhang and ul-ue < max_overhang):
                     if not u in contained:
                         contained.append(u)
-                    continue
-                # If v is shorter than u and both overhangs in v are short, then v is a contained in u
-                if (vl <= ul and vs < max_overhang and vl-ve < max_overhang):
+                elif (vl <= ul and vs < max_overhang and vl-ve < max_overhang):
                     if not v in contained:
                         contained.append(v)
-                    continue
-            f.close()
 
-        # Step 2: Construct graph leavinf out contained reads
+        # Step 2: Construct graph leaving out contained reads
         with open(filename, 'r') as f:
             for line in f:
                 data = line.strip().split('\t')
@@ -64,40 +57,47 @@ class OverlapGraph:
 
                 # Condition for the ovelap to extend (i.e. be useful)
                 # That is: the reads don't have a long overhang in the same end
-                if (strand == '+' and (not (us > max_overhang and vs > max_overhang)) and (not (ul-ue > max_overhang and vl-ve > max_overhang))) or (strand == '-' and (not (us > max_overhang and vl-ve > max_overhang)) and (not (ul-ue > max_overhang and vs > max_overhang))):
-                    print(line)
+                if strand == '+' and \
+                        ((us > max_overhang and vs > max_overhang) or
+                        (ul-ue > max_overhang and vl-ve > max_overhang)):
+                    continue
 
-                    # Add u to graph if it is not there already
-                    if not u in graph.nodes:
-                        graph.nodes.append(u)
-                    
-                        graph.edges[node_in(u)] = []
-                        graph.edges[node_out(u)] = []
+                if strand == '-' and \
+                        ((us > max_overhang and vl-ve > max_overhang) or
+                        (ul-ue > max_overhang and vs > max_overhang)):
+                    continue
 
-                    # Add u to graph if it is not there already
-                    if not v in graph.nodes:
-                        graph.nodes.append(v)
-                    
-                        graph.edges[node_in(v)] = []
-                        graph.edges[node_out(v)] = []
+                # Add u to graph if it is not there already
+                if not u in graph.nodes:
+                    graph.nodes.append(u)
+                
+                    graph.edges[node_in(u)] = []
+                    graph.edges[node_out(u)] = []
 
-                    # If overhang in the end is longer than in the start, then the start of the read is involved in the overlap (and vice versa)
-                    up = node_in(u) if ul - ue > us else node_out(u)
-                    vp = node_in(v) if vl - ve > vs else node_out(v)
+                # Add u to graph if it is not there already
+                if not v in graph.nodes:
+                    graph.nodes.append(v)
+                
+                    graph.edges[node_in(v)] = []
+                    graph.edges[node_out(v)] = []
 
-                    # Add the edges
-                    graph.edges[up].append((vp, us, ue, ul, vs, ve, vl, strand))
-                    graph.edges[vp].append((up, vs, ve, vl, us, ue, ul, strand))
+                # If overhang in the end is longer than in the start,
+                # then the start of the read is involved in the overlap (and vice versa)
+                up = node_in(u) if ul - ue > us else node_out(u)
+                vp = node_in(v) if vl - ve > vs else node_out(v)
+
+                # Add the edges
+                graph.edges[up].append((vp, us, ue, ul, vs, ve, vl, strand))
+                graph.edges[vp].append((up, vs, ve, vl, us, ue, ul, strand))
 
             print('graph: %i nodes, %i edges' % (len(graph.nodes), len(graph.edges)), file=sys.stderr)
-            print('contained: [' + ''.join([str(elem) for elem in contained]) + ']')
-            for u, l in graph.edges.items():
-                print(u, l)
-            print()
+            # print('contained: [' + ''.join([str(elem) for elem in contained]) + ']', file=sys.stderr)
 
         return graph, contained
 
-    # Find a maximum path starting from node start. The path will always start with an edge between in and out nodes of the same read. After that it will alternate between overlap edges and edges between in and out nodes of the same read.
+    # Find a maximum path starting from node start.
+    # The path will always start with an edge between in and out nodes of the same read.
+    # After that it will alternate between overlap edges and edges between in and out nodes of the same read.
     # Parameters:
     # - the node to start from
     # - the set of visited nodes which must not be included in the path
@@ -114,8 +114,8 @@ class OverlapGraph:
         visited.append(nout)
 
         while len(self.edges[nout]) != 0:
-            out = []
             # Find the possible extensions
+            out = []
             for v, us, ue, ul, vs, ve, vl, strand in self.edges[nout]:
                 if v in visited:
                     continue
@@ -123,7 +123,7 @@ class OverlapGraph:
                 # (node, overlap, (edge))
                 out.append((v, max(ue-us, ve-vs), (nout, us, ue, ul, v, vs, ve, vl, strand)))
 
-            # No extensions found -> quit
+            # No extensions found
             if len(out) == 0:
                 break
 
@@ -140,6 +140,7 @@ class OverlapGraph:
 
             # Add the chosen extension to the path
             path.append(m[2])
+
         return path, visited
 
     # Returns a list of list of edges (including "self-edges")
@@ -154,6 +155,7 @@ class OverlapGraph:
 
             path, visited = self.max_path(start, visited)
             paths.append(path)
+
         return paths
 
     # Transfroms list of edges to string operations
@@ -165,22 +167,19 @@ class OverlapGraph:
             if u[:-1] != v[:-1]:
                 # Add starting substring
                 if len(simplified) == 0:
-                    if u[-1] == '-':
-                        simplified.append((u[:-1], 0, ul, '-'))
-                    else:
-                        simplified.append((u[:-1], 0, ul, '+'))
+                    simplified.append((u[:-1], 0, ul, u[-1]))
 
                 # Check if u has an overhang in this end as well. If so, shorten u accordingly
                 if u[-1] == '-':
                     if us > 0:
                         uentry = simplified[-1]
                         simplified[-1] = (uentry[0], us, uentry[2], uentry[3])
-                        print('Clipping %s bases' % us)
+                        # print('Clipping %s bases' % us, file=sys.stderr)
                 else:
-                    if ul-ue > 0:
+                    if ul - ue > 0:
                         uentry = simplified[-1]
                         simplified[-1] = (uentry[0], uentry[1], ue, uentry[3])
-                        print('Clipping %s bases' % (ul-ue))
+                        # print('Clipping %s bases' % (ul-ue), file=sys.stderr)
 
                 # Add the overhang of v
                 if v[-1] == '-':

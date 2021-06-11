@@ -15,9 +15,19 @@ if len(sys.argv) < 3 or len(sys.argv) > 5:
 
 READS = sys.argv[1]
 ALIGNMENTS = sys.argv[2]
-MIN_LEAF_SIZE = None
-BIN_SIZE = 10000
 THREADS = 1
+MIN_LEAF_SIZE = 0.02
+
+# TODO: expose all of these parameters
+BIN_SIZE = 10000
+
+MIN_OVERLAP = 10000
+MAX_OVERHANG = 1000
+MIN_LENGTH = 1000
+
+FINAL_MIN_OVERLAP = 10000
+FINAL_MAX_OVERHANG = 1000
+FINAL_MIN_LENGTH = 1000
 
 if len(sys.argv) == 4:
     THREADS = int(sys.argv[3])
@@ -55,14 +65,15 @@ for r, nleaves in enumerate(topology):
             os.system(MINIMAP + ' -t %d -x ava-pb %s %s > %s' % (THREADS, prefix + '.fa', prefix + '.fa', prefix + '.paf'))
 
             # TODO: support gfa input/output
-            asm_node.assemble(prefix + '.paf', prefix + '.fa', prefix + '.asm.fa')
+            asm_node.assemble(prefix + '.paf', prefix + '.fa', prefix + '.asm.fa',
+                MIN_OVERLAP, MAX_OVERHANG, MIN_LENGTH)
             
             k += 1
         j = k
 
 assemblies = ['tmp.%d.0.%d.asm.fa' % (r, int(log(nleaves, 2))+1) for r, nleaves in enumerate(topology)]
-os.system('cat' + ' '.join(assemblies) + ' > final.fa')
+os.system('cat ' + ' '.join(assemblies) + ' > final.fa')
 
 # Handle mis-separated trees by one final self-assembly
 os.system(MINIMAP + ' -t %d -x ava-pb %s %s > %s' % (THREADS, 'final.fa', 'final.fa', 'final.paf'))
-asm_node.assemble('final.paf', 'final.fa', 'final.asm.fa', min_overlap=1000, max_overhang=100, min_length=5000)
+asm_node.assemble('final.paf', 'final.fa', 'final.asm.fa', FINAL_MIN_OVERLAP, FINAL_MAX_OVERHANG, FINAL_MIN_LENGTH)
