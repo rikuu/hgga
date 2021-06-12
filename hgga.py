@@ -1,5 +1,5 @@
 import sys, os
-from math import log, ceil
+from math import log, floor
 
 import leafify, asm_node
 
@@ -25,9 +25,9 @@ MIN_OVERLAP = 10000
 MAX_OVERHANG = 1000
 MIN_LENGTH = 1000
 
-FINAL_MIN_OVERLAP = 10000
-FINAL_MAX_OVERHANG = 1000
-FINAL_MIN_LENGTH = 1000
+FINAL_MIN_OVERLAP = 1000
+FINAL_MAX_OVERHANG = 100
+FINAL_MIN_LENGTH = 5000
 
 if len(sys.argv) == 4:
     THREADS = int(sys.argv[3])
@@ -55,7 +55,7 @@ for r, nleaves in enumerate(topology):
 
     # Assemble the rest of the hierarchy (greedy)
     j = nleaves
-    for l in range(1, ceil(log(nleaves, 2))+1):
+    for l in range(1, floor(log(nleaves, 2))+2):
         k = 0
         for i in range(0, j, 2):
             prefix = 'tmp.%d.%d.%d' % (r, k, l)
@@ -71,7 +71,7 @@ for r, nleaves in enumerate(topology):
             k += 1
         j = k
 
-assemblies = ['tmp.%d.0.%d.asm.fa' % (r, ceil(log(nleaves, 2))) for r, nleaves in enumerate(topology)]
+assemblies = ['tmp.%d.0.%d.asm.fa' % (r, floor(log(nleaves, 2))+1) for r, nleaves in enumerate(topology)]
 os.system('cat ' + ' '.join(assemblies) + ' > final.fa')
 
 # Handle mis-separated trees by one final self-assembly
