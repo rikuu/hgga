@@ -6,7 +6,7 @@ REV = { 'A': 'T',  'T': 'A', 'G': 'C', 'C': 'G' }
 reverse_complement = lambda s: ''.join(REV[c] for c in reversed(s.upper()))
 
 # Parse fasta file to memory
-def parse_reads(filename):
+def parse_fasta(filename):
     reads = {}
     with open(filename, 'r') as f:
         name, seq = '', ''
@@ -24,7 +24,8 @@ def parse_reads(filename):
     
     return reads
 
-def construct_sequence(path, graph, reads):
+# Construct final sequence according to a path
+def construct_merged_sequence(path, graph, reads):
     seq, contained, name = '', [], ''
 
     if len(path) == 0:
@@ -42,27 +43,27 @@ def construct_sequence(path, graph, reads):
 
     return seq, contained, name
 
-def assemble(mappings, reads_file, out_file, min_overlap, max_overhang, min_length):
+def assemble(mappings, sequence_file, out_file, min_overlap, max_overhang, min_length):
     graph, assembled = OverlapGraph.parse_paf(mappings, min_overlap, max_overhang)
     paths = graph.max_paths()
 
-    reads = parse_reads(reads_file)
+    sequences = parse_fasta(sequence_file)
 
     with open(out_file, 'w') as f:
         for path in paths:
-            seq, contained_reads, name = construct_sequence(path, graph, reads)
+            seq, contained_reads, name = construct_merged_sequence(path, graph, sequences)
             assembled += contained_reads
             if len(seq) > min_length:
                 f.write('>%s\n%s\n' % (name, seq))
 
-        for n, s in reads.items():
+        # Add all reads not part of contigs
+        for n, s in sequences.items():
             if n in assembled:
                 continue
 
             if len(s) < min_length:
                 continue
 
-            # print('D: %s not contained' % n, file=sys.stderr)
             f.write('>%s\n%s\n' % (n, s))
 
 if __name__ == "__main__":
@@ -74,14 +75,15 @@ if __name__ == "__main__":
     reads = sys.argv[2]
 
     min_overlap = 10000
+    max_overhang = 1000
+    min_length = 1000
+
     if len(sys.argv) >= 4:
         min_overlap = int(sys.argv[3])
 
-    max_overhang = 1000
     if len(sys.argv) >= 5:
         max_overhang = int(sys.argv[4])
-
-    min_length = 1000
+    
     if len(sys.argv) == 6:
         min_length = int(sys.argv[5])
     

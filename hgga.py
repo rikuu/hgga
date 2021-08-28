@@ -16,7 +16,7 @@ if len(sys.argv) < 3 or len(sys.argv) > 5:
 READS = sys.argv[1]
 ALIGNMENTS = sys.argv[2]
 THREADS = 1
-MIN_LEAF_SIZE = 0.02
+MIN_LEAF_SIZE = 1.5
 
 # TODO: expose all of these parameters
 BIN_SIZE = 10000
@@ -35,7 +35,11 @@ if len(sys.argv) >= 4:
 if len(sys.argv) >= 5:
     MIN_LEAF_SIZE = float(sys.argv[4])
 
-topology = leafify.leafify(READS, ALIGNMENTS, MIN_LEAF_SIZE, BIN_SIZE)
+if MIN_LEAF_SIZE < 0.1 or MIN_LEAF_SIZE > 100:
+    print("Minimum leaf size needs to within 0.1\% and 100\%")
+    sys.exit(1)
+
+topology = leafify.leafify(READS, ALIGNMENTS, MIN_LEAF_SIZE / 100, BIN_SIZE)
 
 # TODO: process-level parallellism
 for r, nleaves in enumerate(topology):
